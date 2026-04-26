@@ -11,6 +11,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -53,6 +54,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -95,6 +97,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -148,11 +151,54 @@ class Test_entra_users_mfa_capable:
             assert result[1].resource_name == "Test User 2"
             assert result[1].resource_id == user2_id
 
+    def test_api_permission_error(self):
+        """Service reports a permission error: expected single FAIL with error message."""
+        error_msg = "Insufficient privileges to read user registration details"
+        entra_client = mock.MagicMock
+        entra_client.audited_tenant = "audited_tenant"
+        entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda attr: error_msg if attr == "user_registration_details" else None
+
+        with (
+            mock.patch(
+                "prowler.providers.common.provider.Provider.get_global_provider",
+                return_value=set_mocked_m365_provider(),
+            ),
+            mock.patch(
+                "prowler.providers.m365.services.entra.entra_users_mfa_capable.entra_users_mfa_capable.entra_client",
+                new=entra_client,
+            ),
+        ):
+            from prowler.providers.m365.services.entra.entra_users_mfa_capable.entra_users_mfa_capable import (
+                entra_users_mfa_capable,
+            )
+
+            user_id = str(uuid4())
+            entra_client.users = {
+                user_id: User(
+                    id=user_id,
+                    name="Test User",
+                    on_premises_sync_enabled=False,
+                    is_mfa_capable=False,
+                    account_enabled=True,
+                )
+            }
+
+            check = entra_users_mfa_capable()
+            result = check.execute()
+
+            assert len(result) == 1
+            assert result[0].status == "FAIL"
+            assert "Cannot verify MFA capability" in result[0].status_extended
+            assert error_msg in result[0].status_extended
+            assert result[0].resource_name == "User Registration Details"
+
     def test_disabled_user_not_checked(self):
         """Disabled user should not be checked: expected no results."""
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -191,6 +237,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(

@@ -30,6 +30,7 @@ class Test_entra_authentication_method_sms_voice_disabled:
 
             entra_client.authentication_method_configurations = {}
             entra_client.tenant_domain = DOMAIN
+            entra_client.api_error_for = lambda _attr: None
 
             check = entra_authentication_method_sms_voice_disabled()
             result = check.execute()
@@ -68,6 +69,7 @@ class Test_entra_authentication_method_sms_voice_disabled:
                 ),
             }
             entra_client.tenant_domain = DOMAIN
+            entra_client.api_error_for = lambda _attr: None
 
             check = entra_authentication_method_sms_voice_disabled()
             result = check.execute()
@@ -114,6 +116,7 @@ class Test_entra_authentication_method_sms_voice_disabled:
                 ),
             }
             entra_client.tenant_domain = DOMAIN
+            entra_client.api_error_for = lambda _attr: None
 
             check = entra_authentication_method_sms_voice_disabled()
             result = check.execute()
@@ -160,6 +163,7 @@ class Test_entra_authentication_method_sms_voice_disabled:
                 ),
             }
             entra_client.tenant_domain = DOMAIN
+            entra_client.api_error_for = lambda _attr: None
 
             check = entra_authentication_method_sms_voice_disabled()
             result = check.execute()
@@ -206,6 +210,7 @@ class Test_entra_authentication_method_sms_voice_disabled:
                 ),
             }
             entra_client.tenant_domain = DOMAIN
+            entra_client.api_error_for = lambda _attr: None
 
             check = entra_authentication_method_sms_voice_disabled()
             result = check.execute()

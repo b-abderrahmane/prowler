@@ -25,6 +25,21 @@ class entra_users_mfa_capable(Check):
         """
         findings = []
 
+        api_error = entra_client.api_error_for("user_registration_details")
+        if api_error:
+            report = CheckReportM365(
+                metadata=self.metadata(),
+                resource={},
+                resource_name="User Registration Details",
+                resource_id="userRegistrationDetails",
+            )
+            report.status = "FAIL"
+            report.status_extended = (
+                f"Cannot verify MFA capability for users: {api_error}"
+            )
+            findings.append(report)
+            return findings
+
         for user in entra_client.users.values():
             if user.account_enabled:
                 report = CheckReportM365(

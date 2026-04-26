@@ -95,9 +95,7 @@ class Entra(M365Service):
         self.default_app_management_policy = attributes[6]
         self.oauth_apps: Optional[Dict[str, OAuthApp]] = attributes[7]
         self.directory_sync_settings, self.directory_sync_error = attributes[8]
-        self.authentication_method_configurations: Dict[
-            str, AuthenticationMethodConfiguration
-        ] = attributes[9]
+        self.authentication_method_configurations = attributes[9]
         self.user_accounts_status = {}
 
         if created_loop:
@@ -160,9 +158,12 @@ class Entra(M365Service):
                 guest_user_role_id=auth_policy.guest_user_role_id,
             )
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("authorization_policy", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return authorization_policy
 
     async def _get_conditional_access_policies(self):
@@ -481,9 +482,12 @@ class Entra(M365Service):
                     ),
                 )
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("conditional_access_policies", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return conditional_access_policies
 
     async def _get_admin_consent_policy(self):
@@ -504,9 +508,12 @@ class Entra(M365Service):
                 duration_in_days=policy.request_duration_in_days,
             )
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("admin_consent_policy", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return admin_consent_policy
 
     async def _get_default_app_management_policy(self):
@@ -536,9 +543,12 @@ class Entra(M365Service):
                 ),
             )
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("default_app_management_policy", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return default_app_management_policy
 
     async def _get_raw_authentication_flows(self) -> dict:
@@ -721,9 +731,12 @@ class Entra(M365Service):
                     )
                 )
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("groups", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return groups
 
     async def _get_organization(self):
@@ -745,9 +758,12 @@ class Entra(M365Service):
                 )
                 organizations.append(organization)
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("organizations", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
 
         return organizations
 
@@ -783,23 +799,15 @@ class Entra(M365Service):
                         or False,
                     )
                 )
-        except ODataError as error:
-            error_code = getattr(error.error, "code", None) if error.error else None
-            if error_code == "Authorization_RequestDenied":
-                error_message = "Insufficient privileges to read directory sync settings. Required permission: OnPremDirectorySynchronization.Read.All or OnPremDirectorySynchronization.ReadWrite.All"
-                logger.error(
-                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error_message}"
+        except Exception as error:
+            if self._is_permission_error(error):
+                error_message = (
+                    f"Insufficient privileges to read directory sync settings: "
+                    f"{error}"
                 )
             else:
-                logger.error(
-                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-                )
                 error_message = str(error)
-        except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
-            error_message = str(error)
+            self._collect_api_error("directory_sync_settings", error_message)
         return directory_sync_settings, error_message
 
     async def _get_users(self):
@@ -851,16 +859,24 @@ class Entra(M365Service):
                     break
                 users_response = await self.client.users.with_url(next_link).get()
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error("users", str(error))
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return users
 
     async def _get_user_registration_details(self):
         """Retrieve user authentication method registration details.
 
         Fetches registration details from the Microsoft Graph API, including
-        MFA capability and the specific authentication methods each user has registered.
+        MFA capability and the specific authentication methods each user has
+        registered.
+
+        On permission errors the failure is recorded via
+        :meth:`_collect_api_error` so that checks consuming ``users`` can call
+        ``api_error_for("user_registration_details")`` to detect degraded data.
 
         Returns:
             dict: A dictionary mapping user IDs to their registration details,
@@ -893,10 +909,13 @@ class Entra(M365Service):
                 ).get()
 
         except Exception as error:
-            if (
-                error.__class__.__name__ == "ODataError"
-                and error.__dict__.get("response_status_code", None) == 403
-            ):
+            if self._is_permission_error(error):
+                self._collect_api_error(
+                    "user_registration_details",
+                    f"Insufficient privileges to read user registration details: "
+                    f"{error}",
+                )
+            else:
                 logger.error(
                     f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
                 )
@@ -1008,13 +1027,7 @@ OAuthAppInfo
                     )
 
         except Exception as error:
-            # Log the error and return None to indicate API failure
-            # This API requires ThreatHunting.Read.All permission and App Governance to be enabled
-            logger.warning(
-                f"Entra - Could not retrieve OAuth apps from Defender XDR. "
-                f"This requires ThreatHunting.Read.All permission and App Governance enabled. "
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            self._collect_api_error("oauth_apps", str(error))
             return None
 
         return oauth_apps
@@ -1049,9 +1062,16 @@ OAuthAppInfo
                         )
                     )
         except Exception as error:
-            logger.error(
-                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-            )
+            if self._is_permission_error(error):
+                self._collect_api_error(
+                    "authentication_method_configurations",
+                    f"Insufficient privileges to read authentication method configurations: "
+                    f"{error}",
+                )
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         return authentication_method_configurations
 
 

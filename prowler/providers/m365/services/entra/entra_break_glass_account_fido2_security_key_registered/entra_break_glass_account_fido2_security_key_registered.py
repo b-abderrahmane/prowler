@@ -28,6 +28,22 @@ class entra_break_glass_account_fido2_security_key_registered(Check):
         """
         findings = []
 
+        api_error = entra_client.api_error_for("user_registration_details")
+        if api_error:
+            report = CheckReportM365(
+                metadata=self.metadata(),
+                resource={},
+                resource_name="Break Glass Accounts",
+                resource_id="breakGlassAccounts",
+            )
+            report.status = "FAIL"
+            report.status_extended = (
+                f"Cannot verify FIDO2 registration for break glass accounts: "
+                f"{api_error}"
+            )
+            findings.append(report)
+            return findings
+
         enabled_policies = [
             policy
             for policy in entra_client.conditional_access_policies.values()

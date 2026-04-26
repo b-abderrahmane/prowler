@@ -27,6 +27,22 @@ class entra_authentication_method_sms_voice_disabled(Check):
             A list with a single report containing the result of the check.
         """
         findings = []
+
+        api_error = entra_client.api_error_for("authentication_method_configurations")
+        if api_error:
+            report = CheckReportM365(
+                metadata=self.metadata(),
+                resource={},
+                resource_name="SMS and Voice Authentication Methods",
+                resource_id=entra_client.tenant_domain,
+            )
+            report.status = "FAIL"
+            report.status_extended = (
+                f"Cannot verify authentication method configuration: {api_error}"
+            )
+            findings.append(report)
+            return findings
+
         configs = entra_client.authentication_method_configurations
 
         sms_config = configs.get("Sms")

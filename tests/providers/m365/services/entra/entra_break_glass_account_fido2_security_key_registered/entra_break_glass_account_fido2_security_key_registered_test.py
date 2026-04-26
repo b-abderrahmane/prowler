@@ -62,11 +62,42 @@ def _make_policy(policy_id, excluded_users=None, excluded_groups=None, state=Non
 
 
 class Test_entra_break_glass_account_fido2_security_key_registered:
+    def test_api_permission_error(self):
+        """Service reports a permission error: expected single FAIL with error message."""
+        error_msg = "Insufficient privileges to read user registration details"
+        entra_client = mock.MagicMock
+        entra_client.audited_tenant = "audited_tenant"
+        entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda attr: error_msg if attr == "user_registration_details" else None
+
+        with (
+            mock.patch(
+                "prowler.providers.common.provider.Provider.get_global_provider",
+                return_value=set_mocked_m365_provider(),
+            ),
+            mock.patch(
+                f"{CHECK_MODULE_PATH}.entra_client",
+                new=entra_client,
+            ),
+        ):
+            from prowler.providers.m365.services.entra.entra_break_glass_account_fido2_security_key_registered.entra_break_glass_account_fido2_security_key_registered import (
+                entra_break_glass_account_fido2_security_key_registered,
+            )
+
+            check = entra_break_glass_account_fido2_security_key_registered()
+            result = check.execute()
+
+            assert len(result) == 1
+            assert result[0].status == "FAIL"
+            assert "Cannot verify FIDO2 registration" in result[0].status_extended
+            assert error_msg in result[0].status_extended
+
     def test_no_conditional_access_policies(self):
         """Test MANUAL when there are no Conditional Access policies."""
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -104,6 +135,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -142,6 +174,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -178,6 +211,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -228,6 +262,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -275,6 +310,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -321,6 +357,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -368,6 +405,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -422,6 +460,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
@@ -457,6 +496,7 @@ class Test_entra_break_glass_account_fido2_security_key_registered:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.api_error_for = lambda _attr: None
 
         with (
             mock.patch(
