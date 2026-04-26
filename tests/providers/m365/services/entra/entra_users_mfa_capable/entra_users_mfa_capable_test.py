@@ -11,6 +11,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.user_registration_error = None
 
         with (
             mock.patch(
@@ -53,6 +54,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.user_registration_error = None
 
         with (
             mock.patch(
@@ -95,6 +97,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.user_registration_error = None
 
         with (
             mock.patch(
@@ -153,6 +156,7 @@ class Test_entra_users_mfa_capable:
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.user_registration_error = None
 
         with (
             mock.patch(
@@ -186,11 +190,58 @@ class Test_entra_users_mfa_capable:
             # No results should be returned for disabled users
             assert len(result) == 0
 
+    def test_user_registration_error(self):
+        """Registration details unavailable due to missing permissions: expected single FAIL."""
+        entra_client = mock.MagicMock
+        entra_client.audited_tenant = "audited_tenant"
+        entra_client.audited_domain = DOMAIN
+
+        with (
+            mock.patch(
+                "prowler.providers.common.provider.Provider.get_global_provider",
+                return_value=set_mocked_m365_provider(),
+            ),
+            mock.patch(
+                "prowler.providers.m365.services.entra.entra_users_mfa_capable.entra_users_mfa_capable.entra_client",
+                new=entra_client,
+            ),
+        ):
+            from prowler.providers.m365.services.entra.entra_users_mfa_capable.entra_users_mfa_capable import (
+                entra_users_mfa_capable,
+            )
+
+            user_id = str(uuid4())
+            entra_client.users = {
+                user_id: User(
+                    id=user_id,
+                    name="Test User",
+                    on_premises_sync_enabled=False,
+                    directory_roles_ids=[],
+                    is_mfa_capable=False,
+                    account_enabled=True,
+                )
+            }
+            entra_client.user_registration_error = (
+                "Insufficient privileges to read user registration details. "
+                "Required permission: AuditLog.Read.All"
+            )
+
+            check = entra_users_mfa_capable()
+            result = check.execute()
+
+            assert len(result) == 1
+            assert result[0].status == "FAIL"
+            assert "Cannot verify MFA capability" in result[0].status_extended
+            assert "AuditLog.Read.All" in result[0].status_extended
+            assert result[0].resource_name == "User Registration Details"
+            assert result[0].resource_id == "userRegistrationDetails"
+
     def test_mixed_enabled_disabled_users(self):
         """Mix of enabled and disabled users: only enabled users should be checked."""
         entra_client = mock.MagicMock
         entra_client.audited_tenant = "audited_tenant"
         entra_client.audited_domain = DOMAIN
+        entra_client.user_registration_error = None
 
         with (
             mock.patch(

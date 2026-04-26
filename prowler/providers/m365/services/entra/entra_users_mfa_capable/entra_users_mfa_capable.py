@@ -18,12 +18,29 @@ class entra_users_mfa_capable(Check):
         Execute the admin MFA capable check for all users.
 
         Iterates over the users retrieved from the Entra client and generates a report
-        indicating if users are MFA capable.
+        indicating if users are MFA capable. If the user registration details could
+        not be retrieved (e.g. missing AuditLog.Read.All permission), emits a single
+        FAIL with the error message instead of false-positive FAILs for every user.
 
         Returns:
             List[CheckReportM365]: A list containing a single report with the result of the check.
         """
         findings = []
+
+        if entra_client.user_registration_error:
+            report = CheckReportM365(
+                metadata=self.metadata(),
+                resource={},
+                resource_name="User Registration Details",
+                resource_id="userRegistrationDetails",
+            )
+            report.status = "FAIL"
+            report.status_extended = (
+                f"Cannot verify MFA capability for users: "
+                f"{entra_client.user_registration_error}"
+            )
+            findings.append(report)
+            return findings
 
         for user in entra_client.users.values():
             if user.account_enabled:
